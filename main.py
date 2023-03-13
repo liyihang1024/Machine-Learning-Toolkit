@@ -6,6 +6,7 @@ import pprint
 from PIL import Image
 import pandas as pd
 import numpy as np
+import multiprocessing
 from prettytable import PrettyTable
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox, QGraphicsEllipseItem
 from Ui_ML_GUI import Ui_MainWindow
@@ -69,9 +70,11 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.pushButton_2.clicked.connect(self.run_machine_learning)
         self.pushButton_3.clicked.connect(self.convertPlainTextToDict)
         
-        # self.fig = Figure()
-        # self.canvas = FigureCanvas(self.fig)
-        # self.graphicsView.layout().addWidget(self.canvas)
+        # 设置CPU核心数的提示信息
+        self.num_cores = os.cpu_count()
+        self.spinBox_3.setToolTip(f'此电脑总共有{self.num_cores}个CPU核心！')
+        self.spinBox_3.setMaximum(self.num_cores)  # 将CPU核心数设置为该spinBox的最大取值范围
+        
 
     def import_data(self):
         # 导入数据
@@ -82,22 +85,44 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             # 划分为features和targets
             self.X, self.y = data.iloc[:, :-1], data.iloc[:, -1]
 
-                       
-            # 预览数据
-            print("Data imported successfully!")
-            model = QStandardItemModel(len(data), len(data.columns))
-            model.setHorizontalHeaderLabels(list(data.columns))
-            for i in range(len(data)):
-                for j in range(len(data.columns)):
-                    item = QStandardItem(str(data.iloc[i, j]))
-                    model.setItem(i, j, item)
-            self.tableView.setModel(model)
-            # 显示文件名
+            # 调用show_data_in_table函数显示导入的数据
+            tableView_name = 'tableView'
+            self.show_data_in_table(data.reset_index(), tableView_name) # 调用.reset_index()是为了将索引添加进数据列          
+            
+            # 导入数据后在单行文本框中显示文件名
             self.lineEdit.setText(file)
-            # self.line_edit.show()
+
             # 弹窗提示
             self.show_message('数据导入成功,请选择算法！')
+
+            # 预览数据
+            # print("Data imported successfully!")
+            # model = QStandardItemModel(len(data), len(data.columns))
+            # model.setHorizontalHeaderLabels(list(data.columns))
+            # for i in range(len(data)):
+            #     for j in range(len(data.columns)):
+            #         item = QStandardItem(str(data.iloc[i, j]))
+            #         model.setItem(i, j, item)
+            # self.tableView.setModel(model)
+            # 导入数据后在单行文本框中显示文件名
+            # self.lineEdit.setText(file)
+            # 弹窗提示
+            # self.show_message('数据导入成功,请选择算法！')
             
+    def show_data_in_table(self, data, tableView_name):
+        # 将数据data显示在tableView中，data为pandas.DataFrame格式
+        # tableView_name为要显示数据的QTableView名
+        model = QStandardItemModel(len(data), len(data.columns))
+        model.setHorizontalHeaderLabels(list(data.columns))
+        for i in range(len(data)):
+            for j in range(len(data.columns)):
+                item = QStandardItem(str(data.iloc[i, j]))
+                model.setItem(i, j, item)
+        table_view = getattr(self, tableView_name)
+        # 添加数据到model
+        table_view.setModel(model)
+        # 自动调整列宽
+        table_view.resizeColumnsToContents()
 
     def convertPlainTextToDict(self):
         # 读取PlainTextEdit中的文本
@@ -319,21 +344,32 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 test_r2 = r2_score(y_test, y_test_pred)
                 test_mae = mean_absolute_error(y_test, y_test_pred)
                 test_rmse = np.sqrt(mean_squared_error(y_test, y_test_pred))
-
+               
+                # 训练及预测数据
+                data_pred = {'TrainSet':X_train.index,
+                             'y_train':y_train.values,
+                             'y_train_pred':y_train_pred,
+                             'TestSet':X_test.index,
+                             'y_test':y_test.values,
+                             'y_test_pred':y_test_pred}
+                
+                # 训练评估指标
                 scores = {'train_r2':train_r2,
                           'train_mae':train_mae,
                           'train_rmse':train_rmse,
                           'test_r2':test_r2,
                           'test_mae':test_mae,
                           'test_rmse':test_rmse}
+    
+                # 将训练及预测数据转换为DataFrame,不同长度的缺失值用nan填充
+                data_pred = pd.DataFrame({k: pd.Series(v) for k, v in data_pred.items()})
+                scores = pd.DataFrame({k: pd.Series(v) for k, v in scores.items()})
+
+                # 将预测得分指标保留三位小数
+                scores = scores.round(3) 
 
         elif CV_method == 'k_fold':
             # k 折交叉验证
-            # if k is None:
-            #     k = 5
-            # n_splits = kwargs.get('n_splits')
-            # shuffle = kwargs.get('shuffle')
-            # random_state = kwargs.get('random_state')
             n_splits = kwargs.get('n_splits')
             algorithm_category = kwargs.get('algorithm_category')
             
@@ -343,17 +379,49 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                         'mae': make_scorer(mean_absolute_error),
                         'rmse': make_scorer(mean_squared_error, squared=False)}
                 
-                cv_results = cross_validate(model, X_train, y_train, cv=n_splits, scoring=scoring, 
+                # 构造交叉验证迭代器对象
+                kf = KFold(n_splits=n_splits, shuffle=False)
+                # 进行交叉验证并返回每一次交叉验证的训练数据得分和评估器
+                cv_results = cross_validate(model, X_train, y_train, cv=kf, scoring=scoring, 
                                             return_train_score=True, return_estimator=True)
-
+                
                 # 遍历每个拆分的估计器列表,在独立测试集上预测并保存模型
                 test_r2 = []
                 test_mae = []
                 test_rmse = []
+                # 保存每一折的预测数据
+                data_pred = {}
+                # 根据每一次交叉验证的训练数据和验证数据分别得到其预测值
+                for i, estimator, index in zip(range(n_splits), cv_results['estimator'], kf.split(X_train, y_train)):
+                    i += 1 # 从1开始计数
 
-                for i, estimator in enumerate(cv_results['estimator']):
+                    # 每一折的训练集及验证集索引
+                    train_index = index[0]
+                    val_index = index[1]
+                    # 每一折的训练集
+                    X_train_fold = X_train.iloc[train_index]
+                    y_train_fold = y_train.iloc[train_index]
+                    # 每一折的验证集
+                    X_val_fold = X_train.iloc[val_index]
+                    y_val_fold = y_train.iloc[val_index]
+
+                    # 每一折在训练集/验证集/测试集上的预测结果
+                    y_train_pred = estimator.predict(X_train_fold)
+                    y_val_pred = estimator.predict(X_val_fold)
                     y_test_pred = estimator.predict(X_test)
-                    
+
+                    # 将每一折的训练集/验证集/测试集数据及其索引依次保存在字典中
+                    data_pred[f'train_index_Fold_{i}'] = y_train_fold.index
+                    data_pred[f'train_Fold_{i}'] = y_train_fold.values
+                    data_pred[f'train_Fold_pred_{i}'] = y_train_pred
+                    data_pred[f'val_index_Fold_{i}'] = y_val_fold.index
+                    data_pred[f'val_Fold_{i}'] = y_val_fold.values
+                    data_pred[f'val_Fold_pred_{i}'] = y_val_pred
+                    data_pred[f'test_index_Fold_{i}'] = y_test.index
+                    data_pred[f'test_Fold_{i}'] = y_test.values
+                    data_pred[f'test_Fold_pred_{i}'] = y_test_pred
+
+                    # 每一折的模型在独立测试集上的预测得分
                     test_r2_ = r2_score(y_test, y_test_pred)
                     test_mae_ = mean_absolute_error(y_test, y_test_pred)
                     test_rmse_ = mean_squared_error(y_test, y_test_pred, squared=False)
@@ -366,6 +434,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                     if self.checkBox_3.isChecked():
                         self.save_model(i, model, algorithm)
 
+                    # 训练评估指标
                 scores = {'train_r2':cv_results['train_r2'],
                           'train_mae':cv_results['train_mae'],
                           'train_rmse':cv_results['train_rmse'],
@@ -376,18 +445,29 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                           'test_mae':np.array(test_mae),
                           'test_rmse':np.array(test_rmse)}
 
-            # scores = cross_val_score(model, X, y, cv=n_splits, scoring='r2')
-            
-            
-            # kf = KFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
-            # scores = []
-            # for train_index, test_index in kf.split(X):
-            #     X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-            #     y_train, y_test = y.iloc[train_index], y.iloc[test_index]
-            #     model.fit(X_train, y_train)
-            #     y_pred = model.predict(X_test)
-            #     score = r2_score(y_test, y_pred)
-            #     scores.append(score)
+         
+
+                # # 训练及预测数据
+                # data_pred = {'TrainSet':X_train.index,
+                #             'y_train':y_train.values,
+                #             'y_train_pred':y_train_pred,
+                #             'TestSet':X_test.index,
+                #             'y_test':y_test.values,
+                #             'y_test_pred':y_test_pred}
+    
+                # 将训练及预测数据转换为DataFrame,不同长度的缺失值用nan填充
+                data_pred = pd.DataFrame({k: pd.Series(v) for k, v in data_pred.items()})
+                scores = pd.DataFrame({k: pd.Series(v) for k, v in scores.items()})
+
+                # 为scores添加一列索引，求每一列的均值并添加在最后一行
+                scores.index = [i+1 for i in range(scores.shape[0])]
+                scores.index.name = 'fold'
+
+                # 计算每一列的均值并添加到最后一行
+                scores.loc['mean'] = scores.mean() 
+
+                # 将预测得分指标保留三位小数并将索引添加为新列
+                scores = scores.round(3).reset_index()
 
         elif CV_method == 'leave_one_out':
             # 留一法交叉验证
@@ -496,7 +576,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         else:
             raise ValueError("Invalid method parameter.")
 
-        return (scores ,test_size, shuffle, random_state)
+        return [data_pred, scores]
     
     def run_machine_learning(self):
         # print(self.X.shape, self.y.shape)
@@ -539,41 +619,50 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             #       algorithm,
             #       CV_method,
             #       test_size)
-            scores = self.cross_validation(self.X, 
-                                          self.y, 
-                                          algorithm, 
-                                          CV_method, 
-                                          algorithm_category=categoryName)
-            # print('简单交叉验证，测试集大小：',round(test_size, 2))
-            scores = scores[0]
-            for key, value in scores.items():
-                scores[key] = round(value, 2)
-            pprint.pprint(f"预测scores为: {scores}")
+            data_pred, scores = self.cross_validation(self.X, 
+                                                      self.y, 
+                                                      algorithm, 
+                                                      CV_method, 
+                                                      algorithm_category=categoryName)
+            
+            # 调用show_data_in_table函数显示预测数据和预测得分
+            for data, tableView_name in zip([data_pred, scores], ['tableView_3', 'tableView_4']):
+                self.show_data_in_table(data, tableView_name)
+            # pprint.pprint(f"预测scores为: {scores}")
 
         elif self.radioButton_2.isChecked():
             # 留一法交叉验证
             CV_method ='leave_one_out'
-            scores = self.cross_validation(self.X, 
-                                          self.y, 
-                                          algorithm, 
-                                          CV_method,
-                                          algorithm_category=categoryName)
+            data_pred, scores = self.cross_validation(self.X, 
+                                                      self.y, 
+                                                      algorithm, 
+                                                      CV_method,
+                                                      algorithm_category=categoryName)
             print('留一法')
             pprint.pprint(f"预测scores为: {scores}")
+
+            # 调用show_data_in_table函数显示预测数据和预测得分
+            for data, tableView_name in zip([data_pred, scores], ['tableView_3', 'tableView_4']):
+                self.show_data_in_table(data, tableView_name)
         
         elif self.radioButton_3.isChecked():
             # K折交叉验证
             CV_method ='k_fold'
             n_splits = self.spinBox.value()
-            scores = self.cross_validation(self.X, 
-                                          self.y, 
-                                          algorithm, 
-                                          CV_method, 
-                                          n_splits=n_splits,
-                                          algorithm_category=categoryName 
-                                          )
+            data_pred, scores = self.cross_validation(self.X, 
+                                                      self.y, 
+                                                      algorithm, 
+                                                      CV_method, 
+                                                      n_splits=n_splits,
+                                                      algorithm_category=categoryName 
+                                                      )
             print('k折交叉验证：',self.spinBox.value())
             pprint.pprint(f"预测scores为: {scores}")
+
+            # 调用show_data_in_table函数显示预测数据和预测得分
+            for data, tableView_name in zip([data_pred, scores], ['tableView_3', 'tableView_4']):
+                self.show_data_in_table(data, tableView_name)
+                
         
         elif self.radioButton_4.isChecked():
             # 分层交叉验证
@@ -591,6 +680,10 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         else:
             pass
 
+        # 调用show_data_in_table函数显示导入的数据
+        tableView_name = 'tableView'
+        # self.show_data_in_table(data, tableView_name) 
+        
         '''
         # 训练模型
         algorithm.fit(self.X_train, self.y_train)

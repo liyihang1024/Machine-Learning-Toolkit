@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'c:\Users\Carlo\Desktop\ML_GUI\test\ML_GUI.ui'
+# Form implementation generated from reading ui file 'c:\Users\liyih\Desktop\ML_GUI\test\ML_GUI.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.4
 #
@@ -14,9 +14,9 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(1067, 819)
+        MainWindow.resize(721, 842)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("c:\\Users\\Carlo\\Desktop\\ML_GUI\\test\\icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("c:\\Users\\liyih\\Desktop\\ML_GUI\\test\\icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
@@ -416,24 +416,43 @@ class Ui_MainWindow(object):
 "}\n"
 "")
         self.groupBox_5.setObjectName("groupBox_5")
-        self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.groupBox_5)
-        self.horizontalLayout_3.setContentsMargins(15, 15, 15, -1)
-        self.horizontalLayout_3.setSpacing(50)
+        self.verticalLayout_10 = QtWidgets.QVBoxLayout(self.groupBox_5)
+        self.verticalLayout_10.setObjectName("verticalLayout_10")
+        self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
+        self.label_3 = QtWidgets.QLabel(self.groupBox_5)
+        self.label_3.setAlignment(QtCore.Qt.AlignJustify|QtCore.Qt.AlignVCenter)
+        self.label_3.setObjectName("label_3")
+        self.horizontalLayout_3.addWidget(self.label_3)
+        self.spinBox_3 = QtWidgets.QSpinBox(self.groupBox_5)
+        self.spinBox_3.setStyleSheet("QSpinBox {\n"
+"    border: none;\n"
+"    border-radius: 2px;\n"
+"    background-color: white;\n"
+"}\n"
+"")
+        self.spinBox_3.setMinimum(1)
+        self.spinBox_3.setProperty("value", 1)
+        self.spinBox_3.setObjectName("spinBox_3")
+        self.horizontalLayout_3.addWidget(self.spinBox_3)
+        self.verticalLayout_10.addLayout(self.horizontalLayout_3)
+        self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_5.setObjectName("horizontalLayout_5")
         self.pushButton_2 = QtWidgets.QPushButton(self.groupBox_5)
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei UI")
         font.setPointSize(12)
         self.pushButton_2.setFont(font)
         self.pushButton_2.setObjectName("pushButton_2")
-        self.horizontalLayout_3.addWidget(self.pushButton_2)
+        self.horizontalLayout_5.addWidget(self.pushButton_2)
         self.pushButton_3 = QtWidgets.QPushButton(self.groupBox_5)
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei UI")
         font.setPointSize(12)
         self.pushButton_3.setFont(font)
         self.pushButton_3.setObjectName("pushButton_3")
-        self.horizontalLayout_3.addWidget(self.pushButton_3)
+        self.horizontalLayout_5.addWidget(self.pushButton_3)
+        self.verticalLayout_10.addLayout(self.horizontalLayout_5)
         self.verticalLayout_4.addWidget(self.groupBox_5)
         self.groupBox_6 = QtWidgets.QGroupBox(self.widget)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
@@ -570,6 +589,10 @@ class Ui_MainWindow(object):
         self.verticalLayout_3.setContentsMargins(-1, -1, -1, 0)
         self.verticalLayout_3.setObjectName("verticalLayout_3")
         self.tabWidget = QtWidgets.QTabWidget(self.widget_2)
+        font = QtGui.QFont()
+        font.setFamily("Arial")
+        font.setPointSize(10)
+        self.tabWidget.setFont(font)
         self.tabWidget.setObjectName("tabWidget")
         self.tab = QtWidgets.QWidget()
         self.tab.setObjectName("tab")
@@ -599,7 +622,18 @@ class Ui_MainWindow(object):
         self.tab_4.setObjectName("tab_4")
         self.verticalLayout_8 = QtWidgets.QVBoxLayout(self.tab_4)
         self.verticalLayout_8.setObjectName("verticalLayout_8")
+        self.tableView_4 = QtWidgets.QTableView(self.tab_4)
+        self.tableView_4.setStyleSheet("QTableView::item:row:lastRow {\n"
+"    background-color: rgb(85, 255, 127);\n"
+"    font-weight: bold;\n"
+"}\n"
+"")
+        self.tableView_4.setObjectName("tableView_4")
+        self.verticalLayout_8.addWidget(self.tableView_4)
         self.tabWidget.addTab(self.tab_4, "")
+        self.tab_5 = QtWidgets.QWidget()
+        self.tab_5.setObjectName("tab_5")
+        self.tabWidget.addTab(self.tab_5, "")
         self.verticalLayout_3.addWidget(self.tabWidget)
         self.horizontalLayout.addWidget(self.widget_2)
         self.horizontalLayout.setStretch(1, 10)
@@ -608,7 +642,7 @@ class Ui_MainWindow(object):
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 1067, 23))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 721, 23))
         self.menubar.setObjectName("menubar")
         self.menu = QtWidgets.QMenu(self.menubar)
         self.menu.setObjectName("menu")
@@ -717,6 +751,7 @@ class Ui_MainWindow(object):
         self.radioButton_3.setText(_translate("MainWindow", "K折交叉验证"))
         self.radioButton_4.setText(_translate("MainWindow", "分层交叉验证"))
         self.groupBox_5.setTitle(_translate("MainWindow", "预测控制"))
+        self.label_3.setText(_translate("MainWindow", "使用的CPU核心数:"))
         self.pushButton_2.setText(_translate("MainWindow", "Start"))
         self.pushButton_3.setText(_translate("MainWindow", "Stop"))
         self.groupBox_6.setTitle(_translate("MainWindow", "预测得分"))
@@ -729,7 +764,8 @@ class Ui_MainWindow(object):
         self.label_2.setText(_translate("MainWindow", "Test"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), _translate("MainWindow", "训练数据"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("MainWindow", "特征选择"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "预测结果"))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), _translate("MainWindow", "结果绘图"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("MainWindow", "预测数据"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), _translate("MainWindow", "预测得分"))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_5), _translate("MainWindow", "结果绘图"))
         self.menu.setTitle(_translate("MainWindow", "文件"))
         self.action.setText(_translate("MainWindow", "退出"))

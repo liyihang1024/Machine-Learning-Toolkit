@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1067</width>
-    <height>822</height>
+    <width>1072</width>
+    <height>842</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -923,44 +923,68 @@ QGroupBox::title {
          <property name="title">
           <string>预测控制</string>
          </property>
-         <layout class="QHBoxLayout" name="horizontalLayout_3">
-          <property name="spacing">
-           <number>50</number>
-          </property>
-          <property name="leftMargin">
-           <number>15</number>
-          </property>
-          <property name="topMargin">
-           <number>15</number>
-          </property>
-          <property name="rightMargin">
-           <number>15</number>
-          </property>
+         <layout class="QVBoxLayout" name="verticalLayout_10">
           <item>
-           <widget class="QPushButton" name="pushButton_2">
-            <property name="font">
-             <font>
-              <family>Microsoft YaHei UI</family>
-              <pointsize>12</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>Start</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <item>
+             <widget class="QLabel" name="label_3">
+              <property name="text">
+               <string>使用的CPU核心数:</string>
+              </property>
+              <property name="alignment">
+               <set>Qt::AlignJustify|Qt::AlignVCenter</set>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QSpinBox" name="spinBox_3">
+              <property name="styleSheet">
+               <string notr="true">QSpinBox {
+    border: none;
+    border-radius: 2px;
+    background-color: white;
+}
+</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="value">
+               <number>1</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_3">
-            <property name="font">
-             <font>
-              <family>Microsoft YaHei UI</family>
-              <pointsize>12</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>Stop</string>
-            </property>
-           </widget>
+           <layout class="QHBoxLayout" name="horizontalLayout_5">
+            <item>
+             <widget class="QPushButton" name="pushButton_2">
+              <property name="font">
+               <font>
+                <family>Microsoft YaHei UI</family>
+                <pointsize>12</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>Start</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButton_3">
+              <property name="font">
+               <font>
+                <family>Microsoft YaHei UI</family>
+                <pointsize>12</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>Stop</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
          </layout>
         </widget>
@@ -1206,6 +1230,12 @@ QGroupBox::title {
        </property>
        <item>
         <widget class="QTabWidget" name="tabWidget">
+         <property name="font">
+          <font>
+           <family>Arial</family>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
          <property name="currentIndex">
           <number>0</number>
          </property>
@@ -1231,7 +1261,7 @@ QGroupBox::title {
          </widget>
          <widget class="QWidget" name="tab_3">
           <attribute name="title">
-           <string>预测结果</string>
+           <string>预测数据</string>
           </attribute>
           <layout class="QVBoxLayout" name="verticalLayout_7">
            <item>
@@ -1241,9 +1271,26 @@ QGroupBox::title {
          </widget>
          <widget class="QWidget" name="tab_4">
           <attribute name="title">
+           <string>预测得分</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_8">
+           <item>
+            <widget class="QTableView" name="tableView_4">
+             <property name="styleSheet">
+              <string notr="true">QTableView::item:row:lastRow {
+    background-color: rgb(85, 255, 127);
+    font-weight: bold;
+}
+</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="tab_5">
+          <attribute name="title">
            <string>结果绘图</string>
           </attribute>
-          <layout class="QVBoxLayout" name="verticalLayout_8"/>
          </widget>
         </widget>
        </item>
@@ -1258,7 +1305,7 @@ QGroupBox::title {
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1067</width>
+     <width>1072</width>
      <height>23</height>
     </rect>
    </property>
