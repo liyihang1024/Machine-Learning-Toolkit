@@ -7,20 +7,23 @@ from PIL import Image
 import pandas as pd
 import numpy as np
 import multiprocessing
+from functools import partial
 from prettytable import PrettyTable
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QMessageBox, QGraphicsEllipseItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, qApp, QMenu, QFileDialog, QMessageBox, QGraphicsEllipseItem
 from Ui_ML_GUI import Ui_MainWindow
 from PyQt5.QtGui import QStandardItemModel,QStandardItem
 
+import warnings
+from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.metrics import make_scorer, mean_squared_error, mean_absolute_error, r2_score
 from sklearn.neural_network import MLPRegressor
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.model_selection import train_test_split, KFold, StratifiedKFold, LeaveOneOut, cross_validate, cross_val_score
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, MaxAbsScaler
+from sklearn.model_selection import train_test_split, KFold, StratifiedKFold, LeaveOneOut, LeavePOut, cross_validate, cross_val_score
 import matplotlib.pyplot as plt
 import joblib
 
-from PyQt5.QtWidgets import QDialog, QGraphicsScene, QGraphicsView, QTreeWidget, QTreeWidgetItem
-from PyQt5.QtGui import QBrush, QColor, QPainter, QPen
+from PyQt5.QtWidgets import QDialog, QSystemTrayIcon, QGraphicsScene, QGraphicsView, QTreeWidget, QTreeWidgetItem
+from PyQt5.QtGui import QBrush, QColor, QPainter, QPen, QPixmap, QIcon
 from PyQt5.QtCore import Qt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -57,6 +60,9 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(MyMainWindow, self).__init__()
         self.setupUi(self)
+        self.setWindowIcon(QIcon('icon/icon.jpg'))
+        self.setWindowTitle('Machine Learning Toolkit')
+
         self.pushButton_2.setEnabled(False)
         self.pushButton_3.setEnabled(False)
         # 禁用交叉验证的所有单选框
@@ -68,8 +74,10 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.treeWidget.itemClicked.connect(self.select_algorithm)
         self.pushButton.clicked.connect(self.import_data)
         self.pushButton_2.clicked.connect(self.run_machine_learning)
-        self.pushButton_3.clicked.connect(self.convertPlainTextToDict)
-        
+        # self.pushButton_3.clicked.connect(lambda: self.confirm_message('你想中断模型训练？'))
+        self.pushButton_3.clicked.connect(partial(self.confirm_message, '根本停不下来~'))
+
+
         # 设置CPU核心数的提示信息
         self.num_cores = os.cpu_count()
         self.spinBox_3.setToolTip(f'此电脑总共有{self.num_cores}个CPU核心！')
@@ -81,33 +89,17 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         file, _ = QFileDialog.getOpenFileName(self, 'Open file', '', 'Excel files (*.xlsx *.xls)')
         if file:
             # 读取数据
-            data = pd.read_excel(file, index_col=0,header=0)
-            # 划分为features和targets
-            self.X, self.y = data.iloc[:, :-1], data.iloc[:, -1]
-
+            self.data = pd.read_excel(file, index_col=0,header=0)
+            
             # 调用show_data_in_table函数显示导入的数据
             tableView_name = 'tableView'
-            self.show_data_in_table(data.reset_index(), tableView_name) # 调用.reset_index()是为了将索引添加进数据列          
+            self.show_data_in_table(self.data.reset_index(), tableView_name) # 调用.reset_index()是为了将索引添加进数据列          
             
             # 导入数据后在单行文本框中显示文件名
             self.lineEdit.setText(file)
 
             # 弹窗提示
             self.show_message('数据导入成功,请选择算法！')
-
-            # 预览数据
-            # print("Data imported successfully!")
-            # model = QStandardItemModel(len(data), len(data.columns))
-            # model.setHorizontalHeaderLabels(list(data.columns))
-            # for i in range(len(data)):
-            #     for j in range(len(data.columns)):
-            #         item = QStandardItem(str(data.iloc[i, j]))
-            #         model.setItem(i, j, item)
-            # self.tableView.setModel(model)
-            # 导入数据后在单行文本框中显示文件名
-            # self.lineEdit.setText(file)
-            # 弹窗提示
-            # self.show_message('数据导入成功,请选择算法！')
             
     def show_data_in_table(self, data, tableView_name):
         # 将数据data显示在tableView中，data为pandas.DataFrame格式
@@ -118,6 +110,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             for j in range(len(data.columns)):
                 item = QStandardItem(str(data.iloc[i, j]))
                 model.setItem(i, j, item)
+            
         table_view = getattr(self, tableView_name)
         # 添加数据到model
         table_view.setModel(model)
@@ -142,6 +135,13 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
     def show_message(self, message):
         # 弹出信息提示窗
         QMessageBox.information(self, '提示', message)
+    
+    def confirm_message(self, message):
+        # 使用QMessageBox.question获取用户选择,弹出选择提示窗，让用户决定是否继续执行当前函数
+        reply = QMessageBox.question(self, '确认', message, 
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        
+        return reply
 
     def printSelectedItem(self, item, column):
         print(item.text(column))
@@ -152,18 +152,32 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             # 当前选中算法的分类
             parent_item = item.parent()
             category_name = parent_item.text(column)
+
             if category_name == "回归":
+                # 控制启用的交叉验证方法
                 self.radioButton.setEnabled(True)
                 self.radioButton_2.setEnabled(True)
                 self.radioButton_3.setEnabled(True)
                 self.spinBox.setEnabled(True)
+
             elif category_name == "分类":
+                # 控制启用的交叉验证方法
                 self.radioButton.setEnabled(True)
                 self.radioButton_2.setEnabled(True)
                 self.radioButton_3.setEnabled(True)
                 self.radioButton_4.setEnabled(True)
                 self.spinBox.setEnabled(True)
                 self.spinBox_2.setEnabled(True)
+            
+            elif category_name == "聚类":
+                pass
+
+            elif category_name == "降维":
+                pass
+
+            else:
+                pass
+
             print(category_name)
             # 当前选中算法的名称
             regressor_name = item.text(column)
@@ -258,11 +272,13 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                                 index=data.index, 
                                 columns=data.columns)
         elif self.checkBox_6.isChecked():
-            print('分类暂时不可用！')
-            pass
+            print('MaxAbsScaler()')
+            X_scalered = MaxAbsScaler().fit_transform(data)
+            data = pd.DataFrame(X_scalered, 
+                                index=data.index, 
+                                columns=data.columns)
         else:
             print('没有数据归一化！')
-            pass
 
         return data
 
@@ -276,8 +292,15 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         time_ = time.strftime('%Y%m%d_%H%M%S', localtime)
         filename = f'{folder_path}/{num}_{time_}_{str(algorithm_name)[:-2]}.kpi'  # 定义文件名
         joblib.dump(model, filename)
+
+    def show_metrics(self, metrics_mean):
+        # 设置显示分类算法的metric名
+        metric_lineEdit = ['lineEdit_7', 'lineEdit_8', 'lineEdit_9', 'lineEdit_10', 'lineEdit_11', 'lineEdit_12', 'lineEdit_13', 'lineEdit_14', 'lineEdit_15']
+        for lineEdit_name, score_mean in zip(metric_lineEdit, metrics_mean):
+            lineEdit_name = getattr(self, lineEdit_name)
+            lineEdit_name.setText(score_mean)
        
-    def cross_validation(self, X, y, algorithm, CV_method, **kwargs):
+    def cross_validation(self, X, y, algorithm, CV_method, n_jobs, **kwargs):
         """
         实现不同类型的交叉验证
 
@@ -383,7 +406,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 kf = KFold(n_splits=n_splits, shuffle=False)
                 # 进行交叉验证并返回每一次交叉验证的训练数据得分和评估器
                 cv_results = cross_validate(model, X_train, y_train, cv=kf, scoring=scoring, 
-                                            return_train_score=True, return_estimator=True)
+                                            return_train_score=True, return_estimator=True, n_jobs=n_jobs)
                 
                 # 遍历每个拆分的估计器列表,在独立测试集上预测并保存模型
                 test_r2 = []
@@ -411,15 +434,15 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                     y_test_pred = estimator.predict(X_test)
 
                     # 将每一折的训练集/验证集/测试集数据及其索引依次保存在字典中
-                    data_pred[f'train_index_Fold_{i}'] = y_train_fold.index
-                    data_pred[f'train_Fold_{i}'] = y_train_fold.values
-                    data_pred[f'train_Fold_pred_{i}'] = y_train_pred
-                    data_pred[f'val_index_Fold_{i}'] = y_val_fold.index
-                    data_pred[f'val_Fold_{i}'] = y_val_fold.values
-                    data_pred[f'val_Fold_pred_{i}'] = y_val_pred
-                    data_pred[f'test_index_Fold_{i}'] = y_test.index
-                    data_pred[f'test_Fold_{i}'] = y_test.values
-                    data_pred[f'test_Fold_pred_{i}'] = y_test_pred
+                    data_pred[f'y_train_index_F{i}'] = y_train_fold.index
+                    data_pred[f'y_train_F{i}']       = y_train_fold.values
+                    data_pred[f'y_train_pred_F{i}']  = y_train_pred
+                    data_pred[f'y_val_index_F{i}']   = y_val_fold.index
+                    data_pred[f'y_val_F{i}']         = y_val_fold.values
+                    data_pred[f'y_val_pred_F{i}']    = y_val_pred
+                    data_pred[f'y_test_index_F{i}']  = y_test.index
+                    data_pred[f'y_test_F{i}']        = y_test.values
+                    data_pred[f'y_test_pred_F{i}']   = y_test_pred
 
                     # 每一折的模型在独立测试集上的预测得分
                     test_r2_ = r2_score(y_test, y_test_pred)
@@ -434,7 +457,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                     if self.checkBox_3.isChecked():
                         self.save_model(i, model, algorithm)
 
-                    # 训练评估指标
+                # 训练评估指标
                 scores = {'train_r2':cv_results['train_r2'],
                           'train_mae':cv_results['train_mae'],
                           'train_rmse':cv_results['train_rmse'],
@@ -469,85 +492,248 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                 # 将预测得分指标保留三位小数并将索引添加为新列
                 scores = scores.round(3).reset_index()
 
-        elif CV_method == 'leave_one_out':
-            # 留一法交叉验证
+        elif CV_method == 'leave_one_or_P_out':
+            # 留一法或者留P法交叉验证
 
             # 留一法每次只有一个测试样本，少于2个样本将无法计算test_R2，可用以下方法将报出的警告信息忽略
-            import warnings
-            from sklearn.exceptions import UndefinedMetricWarning
             # 忽略UndefinedMetricWarning警告
             warnings.filterwarnings('ignore', category=UndefinedMetricWarning)
             # 如果希望再次打印出已经被忽略的警告信息，可以使用以下代码将警告设置为默认模式：
             # warnings.filterwarnings('default', category=UndefinedMetricWarning)
+            
+            def leave_one_or_P_out_regression(leave_out, n_splits):
+                # 定义留一/P法的回归模型
 
-            loo = LeaveOneOut()
-
-            algorithm_category = kwargs.get('algorithm_category')
-
-            if algorithm_category == '回归':
                 # 指定评分函数列表
                 scoring = {'r2': make_scorer(r2_score),
                         'mae': make_scorer(mean_absolute_error),
                         'rmse': make_scorer(mean_squared_error, squared=False)}
-                # 留一法交叉验证
-                cv_results = cross_validate(model, X_train, y_train, cv=loo, scoring=scoring, 
-                                            return_train_score=True, return_estimator=True)
                 
-                # 得到每个样本的预测值以计算测试集R2
-                estimators = cv_results['estimator']
-                y_val_pred = np.zeros(y_train.shape)
+                if leave_out == 1:
+                    # 进入了留一法
 
-                # 遍历每个拆分的评估器列表,在独立测试集上预测并保存模型
-                test_r2 = []
-                test_mae = []
-                test_rmse = []
+                    loo = LeaveOneOut()
 
-                for i, estimator in enumerate(estimators):
-                    # 拿出训练该评估器时用到的的唯一一个训练样本
-                    x_val = pd.DataFrame(X_train.iloc[i]).T
-                    # x_val = np.array(X_train.iloc[i]).reshape(1, -1)
-                    y_val_pred_ = estimator.predict(x_val)
-                    # 将预测结果保存下来，即验证集预测结果
-                    y_val_pred[i] = y_val_pred_
-
-                    # 每个LOO模型对独立测试集的预测结果
-                    y_test_pred = estimator.predict(X_test)
+                    # 留一法交叉验证
+                    cv_results = cross_validate(model, X_train, y_train, cv=loo, scoring=scoring, 
+                                                return_train_score=True, return_estimator=True, n_jobs=n_jobs)
                     
-                    test_r2_ = r2_score(y_test, y_test_pred)
-                    test_mae_ = mean_absolute_error(y_test, y_test_pred)
-                    test_rmse_ = mean_squared_error(y_test, y_test_pred, squared=False)
-                    
-                    test_r2.append(test_r2_)
-                    test_mae.append(test_mae_)
-                    test_rmse.append(test_rmse_)
+                    # 遍历每个拆分的估计器列表,在独立测试集上预测并保存模型
+                    test_r2 = []
+                    test_mae = []
+                    test_rmse = []
 
-                    # 保存模型
-                    if self.checkBox_3.isChecked():
-                        self.save_model(i, model, algorithm)
+                    # 保存验证集r2，实际上包含只有一个值
+                    val_r2 = []
+                    
+                    # 得到每个val样本的预测值以计算测试集R2
+                    y_val_pred_all = np.zeros(y_train.shape)
+                    
+                    # 保存每一折的预测数据
+                    data_pred = {}
+                    
+                    # 根据每一次交叉验证的训练数据和验证数据分别得到其预测值
+                    for i, estimator, index in zip(range(n_splits), cv_results['estimator'], loo.split(X_train, y_train)):
+                        i += 1 # 从1开始计数
+
+                        # 每一折的训练集及验证集索引
+                        train_index = index[0]
+                        val_index = index[1]
+                        # 每一折的训练集
+                        X_train_fold = X_train.iloc[train_index]
+                        y_train_fold = y_train.iloc[train_index]
+                        # 每一折的验证集
+                        X_val_fold = X_train.iloc[val_index]
+                        y_val_fold = y_train.iloc[val_index]
+
+                        # 每一折在训练集/验证集/测试集上的预测结果
+                        y_train_pred = estimator.predict(X_train_fold)
+                        y_val_pred = estimator.predict(X_val_fold)
+                        y_test_pred = estimator.predict(X_test)
+                        
+                        # 将预测结果保存下来，即验证集预测结果
+                        y_val_pred_all[i-1] = y_val_pred
+
+                        # 将每一折的训练集/验证集/测试集数据及其索引依次保存在字典中
+                        data_pred[f'y_train_index_F{i}'] = y_train_fold.index
+                        data_pred[f'y_train_F{i}']       = y_train_fold.values
+                        data_pred[f'y_train_pred_F{i}']  = y_train_pred
+                        data_pred[f'y_val_index_F{i}']   = y_val_fold.index
+                        data_pred[f'y_val_F{i}']         = y_val_fold.values
+                        data_pred[f'y_val_pred_F{i}']    = y_val_pred
+                        data_pred[f'y_test_index_F{i}']  = y_test.index
+                        data_pred[f'y_test_F{i}']        = y_test.values
+                        data_pred[f'y_test_pred_F{i}']   = y_test_pred
+
+                        # 每一折的模型在独立测试集上的预测得分
+                        test_r2_ = r2_score(y_test, y_test_pred)
+                        test_mae_ = mean_absolute_error(y_test, y_test_pred)
+                        test_rmse_ = mean_squared_error(y_test, y_test_pred, squared=False)
+                        
+                        test_r2.append(test_r2_)
+                        test_mae.append(test_mae_)
+                        test_rmse.append(test_rmse_)
+
+                        # 保存模型
+                        if self.checkBox_3.isChecked():
+                            self.save_model(i, model, algorithm)
+
+                    # 训练评估指标
+                    # 验证集R2
+                    val_r2_ = r2_score(y_train, y_val_pred_all)
+                    val_r2.append(round(val_r2_, 3))
+
+                    scores = {'train_r2':cv_results['train_r2'],
+                                'train_mae':cv_results['train_mae'],
+                                'train_rmse':cv_results['train_rmse'],
+                                'val_r2':np.array(val_r2), # 只有一个值
+                                'val_mae':cv_results['test_mae'],
+                                'val_rmse':cv_results['test_rmse'],
+                                'test_r2':np.array(test_r2),
+                                'test_mae':np.array(test_mae),
+                                'test_rmse':np.array(test_rmse)}
+                    
+                    # 将训练及预测数据转换为DataFrame,不同长度的缺失值用nan填充
+                    data_pred = pd.DataFrame({k: pd.Series(v) for k, v in data_pred.items()})
+                    scores = pd.DataFrame({k: pd.Series(v) for k, v in scores.items()})
+
+                    # 为scores添加一列索引，求每一列的均值并添加在最后一行
+                    scores.index = [i+1 for i in range(scores.shape[0])]
+                    scores.index.name = 'fold'
+
+                    # 计算每一列的均值并添加到最后一行.有nan值的DataFrame调用mean()方法时，
+                    # 默认情况下会自动忽略缺失值（NaN），因此可以计算其平均值。
+                    scores.loc['mean'] = scores.mean()
+
+                    # 将预测得分指标保留三位小数并将索引添加为新列
+                    scores = scores.round(3).reset_index()
                 
-                # 验证集R2
-                val_r2 = r2_score(y_train, y_val_pred)
+                elif leave_out > 1:
+                    # 进入了留P法
 
-                # 预测评估指标                
-                scores = {'train_r2':cv_results['train_r2'],
-                          'train_mae':cv_results['train_mae'],
-                          'train_rmse':cv_results['train_rmse'],
-                          'val_r2':np.array(val_r2), # 只有一个值
-                          'val_mae':cv_results['test_mae'],
-                          'val_rmse':cv_results['test_rmse'],
-                          'test_r2':np.array(test_r2),
-                          'test_mae':np.array(test_mae),
-                          'test_rmse':np.array(test_rmse)}
-            # scores = cross_val_score(model, X, y, cv=loo, scoring='r2')
+                    # 留P法交叉验证
+                    lpo = LeavePOut(leave_out)
+                    # n_splits = lpo.get_n_splits(X)
+                    algorithm_category = kwargs.get('algorithm_category')
+                    
+                    if algorithm_category == '回归':
+                        # 指定评分函数列表
+                        scoring = {'r2': make_scorer(r2_score),
+                                'mae': make_scorer(mean_absolute_error),
+                                'rmse': make_scorer(mean_squared_error, squared=False)}
+                        
+                        # 构造交叉验证迭代器对象
+                        # kf = KFold(n_splits=n_splits, shuffle=False)
+                        # 进行交叉验证并返回每一次交叉验证的训练数据得分和评估器
+                        cv_results = cross_validate(model, X_train, y_train, cv=lpo, scoring=scoring, 
+                                                    return_train_score=True, return_estimator=True, n_jobs=n_jobs)
+                        
+                        # 遍历每个拆分的估计器列表,在独立测试集上预测并保存模型
+                        test_r2 = []
+                        test_mae = []
+                        test_rmse = []
+                        # 保存每一折的预测数据
+                        data_pred = {}
+                        # 根据每一次交叉验证的训练数据和验证数据分别得到其预测值
+                        for i, estimator, index in zip(range(n_splits), cv_results['estimator'], lpo.split(X_train, y_train)):
+                            i += 1 # 从1开始计数
+
+                            # 每一折的训练集及验证集索引
+                            train_index = index[0]
+                            val_index = index[1]
+                            # 每一折的训练集
+                            X_train_fold = X_train.iloc[train_index]
+                            y_train_fold = y_train.iloc[train_index]
+                            # 每一折的验证集
+                            X_val_fold = X_train.iloc[val_index]
+                            y_val_fold = y_train.iloc[val_index]
+
+                            # 每一折在训练集/验证集/测试集上的预测结果
+                            y_train_pred = estimator.predict(X_train_fold)
+                            y_val_pred = estimator.predict(X_val_fold)
+                            y_test_pred = estimator.predict(X_test)
+
+                            # 将每一折的训练集/验证集/测试集数据及其索引依次保存在字典中
+                            data_pred[f'y_train_index_F{i}'] = y_train_fold.index
+                            data_pred[f'y_train_F{i}']       = y_train_fold.values
+                            data_pred[f'y_train_pred_F{i}']  = y_train_pred
+                            data_pred[f'y_val_index_F{i}']   = y_val_fold.index
+                            data_pred[f'y_val_F{i}']         = y_val_fold.values
+                            data_pred[f'y_val_pred_F{i}']    = y_val_pred
+                            data_pred[f'y_test_index_F{i}']  = y_test.index
+                            data_pred[f'y_test_F{i}']        = y_test.values
+                            data_pred[f'y_test_pred_F{i}']   = y_test_pred
+
+                            # 每一折的模型在独立测试集上的预测得分
+                            test_r2_ = r2_score(y_test, y_test_pred)
+                            test_mae_ = mean_absolute_error(y_test, y_test_pred)
+                            test_rmse_ = mean_squared_error(y_test, y_test_pred, squared=False)
+                            
+                            test_r2.append(test_r2_)
+                            test_mae.append(test_mae_)
+                            test_rmse.append(test_rmse_)
+
+                            # 保存模型
+                            if self.checkBox_3.isChecked():
+                                self.save_model(i, model, algorithm)
+
+                        # 训练评估指标
+                        scores = {'train_r2':cv_results['train_r2'],
+                                'train_mae':cv_results['train_mae'],
+                                'train_rmse':cv_results['train_rmse'],
+                                'val_r2':cv_results['test_r2'],
+                                'val_mae':cv_results['test_mae'],
+                                'val_rmse':cv_results['test_rmse'],
+                                'test_r2':np.array(test_r2),
+                                'test_mae':np.array(test_mae),
+                                'test_rmse':np.array(test_rmse)}
             
-            # scores = []
-            # for train_index, test_index in loo.split(X):
-            #     X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-            #     y_train, y_test = y.iloc[train_index], y.iloc[test_index]
-            #     model.fit(X_train, y_train)
-            #     y_pred = model.predict(X_test)
-            #     score = r2_score(y_test, y_pred)
-            #     scores.append(score)
+                        # 将训练及预测数据转换为DataFrame,不同长度的缺失值用nan填充
+                        data_pred = pd.DataFrame({k: pd.Series(v) for k, v in data_pred.items()})
+                        scores = pd.DataFrame({k: pd.Series(v) for k, v in scores.items()})
+
+                        # 为scores添加一列索引，求每一列的均值并添加在最后一行
+                        scores.index = [i+1 for i in range(scores.shape[0])]
+                        scores.index.name = 'fold'
+
+                        # 计算每一列的均值并添加到最后一行
+                        scores.loc['mean'] = scores.mean() 
+
+                        # 将预测得分指标保留三位小数并将索引添加为新列
+                        scores = scores.round(3).reset_index()
+
+                else:
+                    pass
+
+                return data_pred, scores
+
+
+            # 获取算法类型
+            algorithm_category = kwargs.get('algorithm_category')
+
+            # 获取留出的样本数
+            leave_out = self.spinBox_4.value()
+            
+            # 计算需要训练的模型数目，超过100个时需要用确认是否继续执行
+            n_splits = LeaveOneOut().get_n_splits(X_train) if leave_out==1 else LeavePOut(leave_out).get_n_splits(X_train)
+            
+            if algorithm_category == '回归':
+                # 进入了回归模型
+
+                if n_splits < 100:
+                    data_pred, scores = leave_one_or_P_out_regression(leave_out, n_splits)
+                
+                elif n_splits >= 100:
+                    reply = self.confirm_message(f'总共需要训练{n_splits}个模型,可能需要一万年,是否继续执行!')
+                    # reply = QMessageBox.question(self, '确认', f'总共需要训练{n_splits}个模型,可能需要大量的时间,是否继续执行!', 
+                    #                             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                    if reply == QMessageBox.Yes:
+                        # 继续执行
+                        data_pred, scores = leave_one_or_P_out_regression(leave_out, n_splits)
+            
+                    else:
+                        # '取消执行
+                        data_pred, scores = pd.DataFrame(), pd.DataFrame()
 
         elif CV_method == 'stratified':
             # 分层交叉验证
@@ -561,7 +747,7 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
                     'rmse': make_scorer(mean_squared_error, squared=False)}
             
             cv_results = cross_validate(model, X_train, y_train, cv=skf, scoring=scoring, 
-                                        return_train_score=True, return_estimator=True)
+                                        return_train_score=True, return_estimator=True, n_jobs=n_jobs)
 
             # scores = cross_val_score(model, X, y, cv=skf, scoring='r2')
             
@@ -577,15 +763,23 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
             raise ValueError("Invalid method parameter.")
 
         return [data_pred, scores]
+
     
     def run_machine_learning(self):
-        # print(self.X.shape, self.y.shape)
         # 获取所选算法实例并进行机器学习
-        # selected_items = self.treeWidget.selectedItems()
+
+        # 释放stop按钮
+        self.pushButton_3.setEnabled(True)
+        # self.pushButton_3.clicked.connect(self.confirm_message(self, 'nnn'))
+        # self.pushButton_3.clicked.connect(lambda: self.confirm_message('Hello World'))
+
+        # 获取选择的CPU核心数
+        n_jobs = self.spinBox_3.value()
         
         # 获取选择的算法及其分类(回归or分类)
         currentItem = self.treeWidget.currentItem()
         parentItem = currentItem.parent()
+
         if parentItem is not None:
             algorithmName = currentItem.text(0)
             categoryName = parentItem.text(0)
@@ -595,201 +789,124 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         else:
             print("请选择一个算法")
 
-        # 数据预处理
-        # self.X = self.data_preprocessing(self.X)    
+        # 请空metrics显示框内容
+        self.show_metrics([""] * 9)
 
-        # algorithm_classification = selected_items[0].parent()
-        # print(algorithm_classification)
-        # print(selected_items)
-        # if selected_items:
-        #     selected_item = selected_items[0]
-        #     algorithm = self.select_algorithm(selected_item, 0)
-        #     # 进行机器学习，这里仅仅是演示，没有实际训练和预测的过程
-        #     print(f"Running machine learning with algorithm: {algorithm}")
-        # else:
-        #     print("Please select an algorithm from the list.")
+        # 设置显示算法的metric名
+        if categoryName == "回归":
+            metric_label = ['label_10', 'label_11', 'label_12']
+            metric_text = ['R2', 'MAE', 'RMSE']
+            for label_name, text in zip(metric_label, metric_text):
+                label_name = getattr(self, label_name)
+                label_name.setText(text)
+
+        elif categoryName == "分类":
+            metric_label = ['label_10', 'label_11', 'label_12']
+            metric_text = ['Accuracy', 'F1-Score', 'AUC']
+            for label_name, text in zip(metric_label, metric_text):
+                label_name = getattr(self, label_name)
+                label_name.setText(text)
+                
+        elif categoryName == "聚类":
+            pass
+
+        elif categoryName == "降维":
+            pass
+
+        else:
+            pass
         
+        # 数据归一化处理
+        data = self.data_preprocessing(self.data)
+
+        # 划分为features和targets
+        X, y = data.iloc[:, :-1], data.iloc[:, -1]
+
         # 交叉验证方法选择
         if self.radioButton.isChecked():
             # 简单交叉验证
             CV_method ='simple'
-            # test_size = self.doubleSpinBox.value()
-            # print(self.X.shape,
-            #       self.y.shape,
-            #       algorithm,
-            #       CV_method,
-            #       test_size)
-            data_pred, scores = self.cross_validation(self.X, 
-                                                      self.y, 
+
+            data_pred, scores = self.cross_validation(X, y, 
                                                       algorithm, 
                                                       CV_method, 
+                                                      n_jobs, 
                                                       algorithm_category=categoryName)
             
             # 调用show_data_in_table函数显示预测数据和预测得分
             for data, tableView_name in zip([data_pred, scores], ['tableView_3', 'tableView_4']):
                 self.show_data_in_table(data, tableView_name)
-            # pprint.pprint(f"预测scores为: {scores}")
+
+            # 显示平均预测指标
+            metrics_mean = scores.iloc[-1,:]
+            metrics_mean = pd.concat([metrics_mean.iloc[:3], pd.Series(['']*3), metrics_mean.iloc[3:]]).astype(str)
+            # metrics_mean[3:3] = ["", "", ""]  # 列表中间插入3个空值
+            # metrics_mean = pd.Series(metrics_mean).astype(str)
+            self.show_metrics(metrics_mean)
+
+            self.show_message('模型训练成功,请查看预测结果！')
 
         elif self.radioButton_2.isChecked():
-            # 留一法交叉验证
-            CV_method ='leave_one_out'
-            data_pred, scores = self.cross_validation(self.X, 
-                                                      self.y, 
+            # 留一/P法交叉验证
+            CV_method ='leave_one_or_P_out'
+            data_pred, scores = self.cross_validation(X, y, 
                                                       algorithm, 
                                                       CV_method,
+                                                      n_jobs,
                                                       algorithm_category=categoryName)
-            print('留一法')
-            pprint.pprint(f"预测scores为: {scores}")
 
-            # 调用show_data_in_table函数显示预测数据和预测得分
-            for data, tableView_name in zip([data_pred, scores], ['tableView_3', 'tableView_4']):
-                self.show_data_in_table(data, tableView_name)
+            # 放弃执行会返回空的DataFrame
+            if not scores.empty:
+                # 调用show_data_in_table函数显示预测数据和预测得分
+                for data, tableView_name in zip([data_pred, scores], ['tableView_3', 'tableView_4']):
+                    self.show_data_in_table(data, tableView_name)
+                
+                # 调用show_metrics函数显示平均预测指标
+                metrics_mean = scores.iloc[-1,1:].astype(str)
+                self.show_metrics(metrics_mean)
+
+                self.show_message('模型训练成功,请查看预测结果！')
         
         elif self.radioButton_3.isChecked():
             # K折交叉验证
             CV_method ='k_fold'
             n_splits = self.spinBox.value()
-            data_pred, scores = self.cross_validation(self.X, 
-                                                      self.y, 
+            data_pred, scores = self.cross_validation(X, y, 
                                                       algorithm, 
                                                       CV_method, 
+                                                      n_jobs,
                                                       n_splits=n_splits,
                                                       algorithm_category=categoryName 
                                                       )
             print('k折交叉验证：',self.spinBox.value())
-            pprint.pprint(f"预测scores为: {scores}")
+            # pprint.pprint(f"预测scores为: {scores}")
 
             # 调用show_data_in_table函数显示预测数据和预测得分
             for data, tableView_name in zip([data_pred, scores], ['tableView_3', 'tableView_4']):
                 self.show_data_in_table(data, tableView_name)
                 
-        
+            # 调用show_metrics函数显示平均预测指标
+            metrics_mean = scores.iloc[-1,1:].astype(str)
+            self.show_metrics(metrics_mean)
+
+            self.show_message('模型训练成功,请查看预测结果！')
+
         elif self.radioButton_4.isChecked():
             # 分层交叉验证
             CV_method ='stratified'
             n_splits = self.spinBox_2.value()
-            scores = self.cross_validation(self.X, 
-                                          self.y, 
+            scores = self.cross_validation(X, y, 
                                           algorithm, 
                                           CV_method, 
+                                          n_jobs,
                                           n_splits=n_splits, 
                                           algorithm_category=categoryName
                                           )
             print('分层交叉验证',self.spinBox_2.value())
             print(f"预测scores为: {scores}")
-        else:
-            pass
 
-        # 调用show_data_in_table函数显示导入的数据
-        tableView_name = 'tableView'
-        # self.show_data_in_table(data, tableView_name) 
-        
-        '''
-        # 训练模型
-        algorithm.fit(self.X_train, self.y_train)
+            self.show_message('模型训练成功,请查看预测结果！')
 
-        # 保存模型
-        localtime = time.localtime()
-        time1 = time.strftime('%Y%m%d_%H%M%S', localtime)
-        joblib.dump(algorithm, 'Model/%s_%s.pkl'%(str(algorithm)[:-2], time1))
-        
-        # 在训练集上进行预测
-        y_train_pred = algorithm.predict(self.X_train)
-        r2_train = r2_score(self.y_train, y_train_pred)
-        mae_train = mean_absolute_error(self.y_train, y_train_pred)
-        rmse_train = np.sqrt(mean_squared_error(self.y_train, y_train_pred))
-
-        # 在测试集上进行预测
-        y_test_pred = algorithm.predict(self.X_test)
-        r2_test = r2_score(self.y_test, y_test_pred)
-        mae_test = mean_absolute_error(self.y_test, y_test_pred)
-        rmse_test = np.sqrt(mean_squared_error(self.y_test, y_test_pred))
-
-        # 显示预测得分
-        self.lineEdit_7.setText(str(round(r2_train, 2)))
-        self.lineEdit_8.setText(str(round(mae_train, 2)))
-        self.lineEdit_9.setText(str(round(rmse_train, 2)))
-        self.lineEdit_10.setText(str(round(r2_test, 2)))
-        self.lineEdit_11.setText(str(round(mae_test, 2)))
-        self.lineEdit_12.setText(str(round(rmse_test, 2)))
-
-
-        # 打印指标
-        table = PrettyTable(['Metric', 'Training set', 'Test set'])
-        table.add_row(['R2', round(r2_train, 2), round(r2_test, 2)])
-        table.add_row(['MAE', round(mae_train, 2), round(mae_test, 2)])
-        table.add_row(['RMSE', round(rmse_train, 2), round(rmse_test, 2)])
-        print(table)
-        
-        # 显示预测结果
-        data = {'TrainSet':self.y_train.index,
-                'y_train':self.y_train.values,
-                'y_train_pred':y_train_pred,
-                'TestSet':self.y_test.index,
-                'y_test':self.y_test.values,
-                'y_test_pred':y_test_pred}
-    
-        data = pd.DataFrame({k: pd.Series(v) for k, v in data.items()})
-
-        model = QStandardItemModel(len(data), len(data.columns))
-        model.setHorizontalHeaderLabels(list(data.columns))
-        for i in range(len(data)):
-            for j in range(len(data.columns)):
-                item = QStandardItem(str(data.iloc[i, j]))
-                model.setItem(i, j, item)
-        self.tableView_3.setModel(model)
-
-        '''
-        self.show_message('模型训练成功,请查看预测结果！')
-        
-
-    def machineLearning(self):
-        # 获取选择的算法名称
-        algorithm = self.select_algorithm()
-        print(algorithm)
-        currentItem = self.treeWidget.currentItem()
-        parentItem = currentItem.parent()
-        if parentItem is not None:
-            algorithmName = currentItem.text(0)
-            categoryName = parentItem.text(0)
-            print(f"您选择了{categoryName}中的{algorithmName}算法")
-        else:
-            print("请选择一个算法")
-
-        # 训练模型并打印预测结果
-        if algorithmName == "随机森林回归":
-            rf_params = RandomForestRegressor().get_params()
-            print(rf_params)
-            text = ""
-            for key, value in rf_params.items():
-                text += f"{key}: {value}\n"
-            self.plainTextEdit.setPlainText(text)
-            # model = LinearRegression(**self.model_params)
-            print("随机森林回归")
-            # 构建随机森林回归模型并进行预测
-            # X = self.data.iloc[:, :-1].values
-            # y = self.data.iloc[:, -1].values
-            # regressor = RandomForestRegressor(n_estimators=100, random_state=0)
-            # regressor.fit(X, y)
-            # y_pred = regressor.predict(X)
-            # print(f"随机森林回归预测结果：\n{y_pred}")
-        elif algorithmName == "支持向量回归":
-            print("支持向量回归")
-            # 构建支持向量回归模型并进行预测
-            # X = self.data.iloc[:, :-1].values
-            # y = self.data.iloc[:, -1].values
-            # regressor = SVR(kernel='rbf')
-            # regressor.fit(X, y)
-            # y_pred = regressor.predict(X)
-            # print(f"支持向量回归预测结果：\n{y_pred}")
-        elif algorithmName == "决策树":
-            print("决策树")
-            # 构建决策树分类器并进行预测
-            pass
-        elif algorithmName == "支持向量分类":
-            print("支持向量分类")
-            # 构建支持向量分类器并进行预测
-            pass
         else:
             pass
 
