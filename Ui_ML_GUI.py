@@ -15,6 +15,9 @@ class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(979, 684)
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap("g:\\21-程序开发\\Machine-Learning-Toolkit\\icon/icon_no_bg.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        MainWindow.setWindowIcon(icon)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
@@ -51,10 +54,6 @@ class Ui_MainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.groupBox.sizePolicy().hasHeightForWidth())
         self.groupBox.setSizePolicy(sizePolicy)
-        font = QtGui.QFont()
-        font.setFamily("黑体")
-        font.setPointSize(-1)
-        self.groupBox.setFont(font)
         self.groupBox.setStyleSheet("QGroupBox{\n"
 "    border: 2px solid rgb(17, 17, 17);\n"
 "    border-radius: 10px;\n"
@@ -82,6 +81,10 @@ class Ui_MainWindow(object):
         self.pushButton.setObjectName("pushButton")
         self.horizontalLayout_2.addWidget(self.pushButton)
         self.lineEdit = QtWidgets.QLineEdit(self.groupBox)
+        font = QtGui.QFont()
+        font.setFamily("3ds")
+        font.setPointSize(10)
+        self.lineEdit.setFont(font)
         self.lineEdit.setStyleSheet("QLineEdit {\n"
 "    border: none;\n"
 "    border-radius: 2px;\n"
@@ -118,6 +121,9 @@ class Ui_MainWindow(object):
         self.verticalLayout.setObjectName("verticalLayout")
         self.treeWidget = QtWidgets.QTreeWidget(self.groupBox_2)
         self.treeWidget.setMaximumSize(QtCore.QSize(16777215, 100))
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        self.treeWidget.setFont(font)
         self.treeWidget.setStyleSheet("QTreeWidget {\n"
 "    border-radius: 5px;\n"
 "}\n"
@@ -195,10 +201,6 @@ class Ui_MainWindow(object):
         self.groupBox_3 = QtWidgets.QGroupBox(self.scrollAreaWidgetContents_3)
         self.groupBox_3.setMinimumSize(QtCore.QSize(0, 150))
         self.groupBox_3.setMaximumSize(QtCore.QSize(16777215, 200))
-        font = QtGui.QFont()
-        font.setFamily("黑体")
-        font.setPointSize(-1)
-        self.groupBox_3.setFont(font)
         self.groupBox_3.setStyleSheet("QGroupBox{\n"
 "    border: 2px solid rgb(17, 17, 17);\n"
 "    border-radius: 10px;\n"
@@ -239,10 +241,6 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(self.groupBox_7.sizePolicy().hasHeightForWidth())
         self.groupBox_7.setSizePolicy(sizePolicy)
         self.groupBox_7.setMaximumSize(QtCore.QSize(16777215, 16777215))
-        font = QtGui.QFont()
-        font.setFamily("黑体")
-        font.setPointSize(-1)
-        self.groupBox_7.setFont(font)
         self.groupBox_7.setStyleSheet("QGroupBox{\n"
 "    border: 2px solid rgb(17, 17, 17);\n"
 "    border-radius: 10px;\n"
@@ -494,10 +492,6 @@ class Ui_MainWindow(object):
         sizePolicy.setHeightForWidth(self.groupBox_6.sizePolicy().hasHeightForWidth())
         self.groupBox_6.setSizePolicy(sizePolicy)
         self.groupBox_6.setMaximumSize(QtCore.QSize(16777215, 16777215))
-        font = QtGui.QFont()
-        font.setFamily("黑体")
-        font.setPointSize(-1)
-        self.groupBox_6.setFont(font)
         self.groupBox_6.setStyleSheet("QGroupBox{\n"
 "    border: 2px solid rgb(17, 17, 17);\n"
 "    border-radius: 10px;\n"
@@ -689,11 +683,17 @@ class Ui_MainWindow(object):
         self.menubar.setObjectName("menubar")
         self.menu = QtWidgets.QMenu(self.menubar)
         self.menu.setObjectName("menu")
+        self.menu_2 = QtWidgets.QMenu(self.menubar)
+        self.menu_2.setObjectName("menu_2")
         MainWindow.setMenuBar(self.menubar)
         self.action = QtWidgets.QAction(MainWindow)
         self.action.setObjectName("action")
+        self.action_2 = QtWidgets.QAction(MainWindow)
+        self.action_2.setObjectName("action_2")
         self.menu.addAction(self.action)
+        self.menu_2.addAction(self.action_2)
         self.menubar.addAction(self.menu.menuAction())
+        self.menubar.addAction(self.menu_2.menuAction())
 
         self.retranslateUi(MainWindow)
         self.tabWidget.setCurrentIndex(0)
@@ -814,4 +814,6 @@ class Ui_MainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_4), _translate("MainWindow", "预测得分"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_5), _translate("MainWindow", "结果绘图"))
         self.menu.setTitle(_translate("MainWindow", "文件"))
+        self.menu_2.setTitle(_translate("MainWindow", "帮助"))
         self.action.setText(_translate("MainWindow", "退出"))
+        self.action_2.setText(_translate("MainWindow", "关于"))

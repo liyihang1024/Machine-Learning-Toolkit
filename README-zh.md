@@ -1,9 +1,26 @@
 # Machine-Learning-Toolkit
+
 该项目是一个用于实现各种机器学习算法预测的 GUI 框架。
+
+![图片](./figures/usage.png)
+
 <div class="language-selector">
   <a href="README.md">English</a>
   <a href="README-zh.md">中文</a>
 </div>
+
+## 目录
+
+- [项目介绍](#项目介绍)
+- [主要功能](#主要功能)
+- [依赖条件](#依赖条件)
+- [项目内容](#项目内容)
+- [安装](#安装)
+- [使用](#使用)
+- [贡献者](#贡献者)
+- [许可证](#许可证)
+- [致谢](#致谢)
+
 
 ## 项目介绍
 
@@ -36,6 +53,26 @@ Machine Learning Toolkit 是一个用于实现各种机器学习算法预测的G
 - Python 3.x
 
 - Python包依赖请参见 requirements.txt 文件
+
+## 项目内容
+
+项目中的文件结构应该是这样：
+
+```
+Machine-Learning-Toolkit
+├── __pycache__：Python编译后自动生成的文件夹
+├── databases：数据文件夹，用于存放导入的数据文件
+├── figures：图表文件夹，用于存放生成的图表
+├── icon：图标文件夹，存放软件图标
+├── model：模型文件夹，存放训练好的模型文件
+├── ML_GUI.ui：PyQt5设计的GUI界面文件
+├── Ui_ML_GUI.py：通过PyQt5将ML_GUI.ui转化为python代码生成的文件
+├── main.py：主程序文件
+├── requirements.txt：Python环境依赖库文件
+├── README.md：项目介绍文件（英文）
+├── README-zh.md：项目介绍文件（中文）
+└── LICENSE：MIT许可证文件
+```
 
 ## 安装
 

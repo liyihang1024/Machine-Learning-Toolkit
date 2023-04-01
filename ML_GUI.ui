@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>二十四桥明月夜</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>icon/icon_no_bg.png</normaloff>icon/icon_no_bg.png</iconset>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,10">
     <property name="spacing">
@@ -98,12 +102,6 @@
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
-             <property name="font">
-              <font>
-               <family>黑体</family>
-               <pointsize>-1</pointsize>
-              </font>
-             </property>
              <property name="styleSheet">
               <string notr="true">QGroupBox{
     border: 2px solid rgb(17, 17, 17);
@@ -157,6 +155,12 @@ QGroupBox::title {
               </item>
               <item>
                <widget class="QLineEdit" name="lineEdit">
+                <property name="font">
+                 <font>
+                  <family>3ds</family>
+                  <pointsize>10</pointsize>
+                 </font>
+                </property>
                 <property name="styleSheet">
                  <string notr="true">QLineEdit {
     border: none;
@@ -214,6 +218,11 @@ QGroupBox::title {
                   <width>16777215</width>
                   <height>100</height>
                  </size>
+                </property>
+                <property name="font">
+                 <font>
+                  <pointsize>10</pointsize>
+                 </font>
                 </property>
                 <property name="styleSheet">
                  <string notr="true">QTreeWidget {
@@ -548,12 +557,6 @@ QHeaderView::section {
                <height>200</height>
               </size>
              </property>
-             <property name="font">
-              <font>
-               <family>黑体</family>
-               <pointsize>-1</pointsize>
-              </font>
-             </property>
              <property name="styleSheet">
               <string notr="true">QGroupBox{
     border: 2px solid rgb(17, 17, 17);
@@ -620,12 +623,6 @@ QGroupBox::title {
                <width>16777215</width>
                <height>16777215</height>
               </size>
-             </property>
-             <property name="font">
-              <font>
-               <family>黑体</family>
-               <pointsize>-1</pointsize>
-              </font>
              </property>
              <property name="styleSheet">
               <string notr="true">QGroupBox{
@@ -1097,12 +1094,6 @@ QGroupBox::title {
                <height>16777215</height>
               </size>
              </property>
-             <property name="font">
-              <font>
-               <family>黑体</family>
-               <pointsize>-1</pointsize>
-              </font>
-             </property>
              <property name="styleSheet">
               <string notr="true">QGroupBox{
     border: 2px solid rgb(17, 17, 17);
@@ -1440,11 +1431,23 @@ QGroupBox::title {
     </property>
     <addaction name="action"/>
    </widget>
+   <widget class="QMenu" name="menu_2">
+    <property name="title">
+     <string>帮助</string>
+    </property>
+    <addaction name="action_2"/>
+   </widget>
    <addaction name="menu"/>
+   <addaction name="menu_2"/>
   </widget>
   <action name="action">
    <property name="text">
     <string>退出</string>
+   </property>
+  </action>
+  <action name="action_2">
+   <property name="text">
+    <string>关于</string>
    </property>
   </action>
  </widget>
