@@ -2,6 +2,7 @@ import sys
 import io
 import os
 import time
+import xlwt
 import pprint
 from PIL import Image
 import pandas as pd
@@ -9,9 +10,9 @@ import numpy as np
 import multiprocessing
 from functools import partial
 from prettytable import PrettyTable
-from PyQt5.QtWidgets import QApplication, QMainWindow, QTableView, QTableWidgetItem, qApp, QAction, QMenu, QFileDialog, QMessageBox, QGraphicsEllipseItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QTableView, QTabWidget, QTableWidgetItem, qApp, QAction, QMenu, QFileDialog, QMessageBox, QGraphicsEllipseItem
 from Ui_ML_GUI import Ui_MainWindow
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QCursor
 
 import warnings
 from sklearn.exceptions import UndefinedMetricWarning
@@ -720,8 +721,82 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         self.spinBox_3.setToolTip(f'此电脑总共有{self.num_cores}个CPU核心！')
         self.spinBox_3.setMaximum(self.num_cores)  # 将CPU核心数设置为该spinBox的最大取值范围
 
-        # About信息
-        self.about = """
+        # 菜单栏About按钮
+        self.action_2.triggered.connect(self.showAbout)
+        
+ ################### 右键导出数据 ###########################
+        # 设置表格的上下文菜单策略为自定义
+        self.tabWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tabWidget.customContextMenuRequested.connect(self.showMenu)
+
+    def showMenu(self, pos):
+        # 获取发送信号的对象，即当前鼠标单击的对象
+        widget = self.sender()
+        # widget_name = widget.objectName()
+        # print(f"widget: {widget}, widget_name: {widget_name}")
+
+        # 判断当前发送信号的对象是否为QTableWidget
+        if isinstance(widget, QTabWidget):
+            # 获取当前被选中的子控件，即当前显示的QTableWidget
+            current_widget = widget.currentWidget()
+            print(f"current_widget: {current_widget}")
+            # 遍历QTabWidget下的所有子控件，查找当前显示的QTableView，获取它的名称
+            for child_widget in widget.findChildren(QTableView):
+                print(child_widget, child_widget.objectName())
+ 
+                # if child_widget == current_widget:
+                #     print(child_widget.objectName())
+            # 在鼠标单击的位置弹出菜单
+            menu = QMenu(self)
+            exportAction = QAction(QIcon('export.png'), '导出数据', self)
+            exportAction.triggered.connect(self.exportData)
+            menu.addAction(exportAction)
+            menu.exec_(QCursor().pos()) # 在鼠标单击的位置弹出菜单
+
+
+    def exportData(self, table_widget):
+        # 获取发送信号的对象
+        table = self.sender()
+        # 获取当前tableView的名称
+        name = table.objectName()
+        print(f"table:{table}")
+        print(f"name:{name}")
+        # 获取当前显示的QWidget对象
+        widget = self.tabWidget.currentWidget()
+        # 查找该QWidget对象中的QTableView对象
+        table = widget.findChild(QTableView)
+        # 获取当前tableView的名称
+        name = table.objectName()
+        print(f"table:{table}")
+        print(f"name:{name}")
+        # 弹出文件保存对话框，获取要保存的文件名和路径
+        fileName, _ = QFileDialog.getSaveFileName(self, "保存文件", "", "Excel Files (*.xlsx)")
+        if fileName:
+            # 获取表格中的所有数据，包括表头
+            data = []
+            # 获取表头
+            header = []
+            for j in range(table.model().columnCount()):
+                header.append(table.model().headerData(j, Qt.Horizontal))
+            data.append(header)
+            # 获取表格中的数据
+            for i in range(table.model().rowCount()):
+                row = []
+                for j in range(table.model().columnCount()):
+                    index = table.model().index(i, j)
+                    data_item = table.model().data(index)
+                    row.append(data_item)
+                data.append(row)
+
+            # 将数据转化为DataFrame
+            df = pd.DataFrame(data)
+
+            # 将DataFrame保存为Excel文件
+            df.to_excel(fileName, index=False, header=False)
+##############################################
+       
+    def showAbout(self):
+        about = """
         <html><head/><body><p align="center"><span style=" font-size:12pt; 
         font-weight:600;">Machine Learning Toolkit</span></p><p align="center">
         <span style=" font-size:12pt;">当前版本：1.1.5</span></p><p align="center">
@@ -732,40 +807,89 @@ class MyMainWindow(QMainWindow, Ui_MainWindow):
         预测的GUI框架，用于帮助课题组内想了解机器学习但是没有编程背景的同学将机器学习应
         用到自己的科研当中。</span></p></body></html>
         """
-        self.action_2.triggered.connect(self.showAbout)
-    def showAbout(self):
-        QMessageBox.about(self, '关于本软件', self.about)
+        QMessageBox.about(self, '关于本软件', about)
 
-##############################################
-        # 设置菜单
-        self.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.customContextMenuRequested.connect(self.showContextMenu)
-        self.menu = QMenu(self)
-        self.export_action = QAction(QIcon("icon/icon_no_bg.png"), "Export to Excel", self)
-        self.export_action.triggered.connect(self.export_to_excel)
-        self.menu.addAction(self.export_action)
+################### 右键导出数据 ###########################
 
-        # self.setCentralWidget(self.table_view)
+        # 设置表格的上下文菜单策略为自定义
+        self.tabWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tabWidget.customContextMenuRequested.connect(self.showMenu)
 
-    def showContextMenu(self, pos):
-        self.menu.exec_(self.mapToGlobal(pos))
+    def showMenu(self, pos):
+        # 获取发送信号的对象，即当前鼠标单击的对象
+        widget = self.sender()
+        # widget_name = widget.objectName()
+        # print(f"widget: {widget}, widget_name: {widget_name}")
 
-    def export_to_excel(self):
-        table_view = self.sender()
-        if not isinstance(table_view, QTableView):
-            return
-        model = table_view.model()
-        if not isinstance(model, QStandardItemModel):
-            return
-        data = []
-        for row in range(model.rowCount()):
-            data.append([model.index(row, col).data() for col in range(model.columnCount())])
-        df = pd.DataFrame(data=data, columns=[model.headerData(col, Qt.Horizontal) for col in range(model.columnCount())])
-        file_path, _ = QFileDialog.getSaveFileName(self, "Save file", "", "Excel files (*.xlsx)")
-        if file_path:
-            writer = pd.ExcelWriter(file_path, engine="xlsxwriter")
-            df.to_excel(writer, index=False)
-            writer.save()
+        # 判断当前发送信号的对象是否为QTableWidget
+        if isinstance(widget, QTabWidget):
+            # 获取当前被选中的子控件，即当前显示的QTableWidget
+            # current_widget = widget.currentWidget()
+            # print(f"current_widget: {current_widget}")
+            # 遍历QTabWidget下的所有子控件，查找当前显示的QTableView，获取它的名称
+            # for child_widget in widget.findChildren(QTableView):
+            #     print(child_widget, child_widget.objectName())
+            #     if child_widget == current_widget:
+            #         print(child_widget.objectName())
+                
+            # 在鼠标单击的位置弹出菜单
+            menu = QMenu(self)
+            exportAction = QAction(QIcon('export.png'), '导出数据', self)
+            exportAction.triggered.connect(self.exportData)
+            menu.addAction(exportAction)
+            menu.exec_(QCursor().pos()) # 在鼠标单击的位置弹出菜单
+
+
+    def exportData(self, table_widget):
+        # 获取发送信号的对象
+        table = self.sender()
+
+        # # 获取当前tableView的名称
+        # name = table.objectName()
+        # print(f"table:{table}")
+        # print(f"name:{name}")
+
+        # 获取当前显示的QWidget对象
+        widget = self.tabWidget.currentWidget()
+        # 查找该QWidget对象中的QTableView对象
+        TableView = widget.findChild(QTableView)
+        # print(f"TableView:{TableView}")
+
+        # # 获取当前tableView的名称
+        # name = table.objectName()
+        # print(f"table:{table}")
+        # print(f"name:{name}")
+
+        # 判断当前Tab是否为空
+        if not isinstance(TableView, type(None)):
+            model = TableView.model()
+
+            # 判断表格是否为空
+            if not isinstance(model, type(None)):
+                # 如果表格非空则弹出文件保存对话框，获取要保存的文件名和路径
+                fileName, _ = QFileDialog.getSaveFileName(self, "保存文件", "", "Excel Files (*.xlsx)")
+                if fileName:
+                    # 获取表格中的所有数据，包括表头
+                    data = []
+                    # 获取表头
+                    header = []
+                    for j in range(model.columnCount()):
+                        header.append(model.headerData(j, Qt.Horizontal))
+                    data.append(header)
+                    # 获取表格中的数据
+                    for i in range(model.rowCount()):
+                        row = []
+                        for j in range(model.columnCount()):
+                            index = model.index(i, j)
+                            data_item = model.data(index)
+                            row.append(data_item)
+                        data.append(row)
+
+                    # 将数据转化为DataFrame
+                    df = pd.DataFrame(data)
+
+                    # 将DataFrame保存为Excel文件
+                    df.to_excel(fileName, index=False, header=False)
 ##############################################
 
     def load_data(self):

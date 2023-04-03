@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'g:\21-程序开发\Machine-Learning-Toolkit\ML_GUI.ui'
+# Form implementation generated from reading ui file 'g:\21-程序开发\Machine-Learning-Toolkit-Project\Machine-Learning-Toolkit\ML_GUI.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.4
 #
@@ -16,7 +16,7 @@ class Ui_MainWindow(object):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(979, 684)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("g:\\21-程序开发\\Machine-Learning-Toolkit\\icon/icon_no_bg.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("g:\\21-程序开发\\Machine-Learning-Toolkit-Project\\Machine-Learning-Toolkit\\icon/icon_no_bg.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
